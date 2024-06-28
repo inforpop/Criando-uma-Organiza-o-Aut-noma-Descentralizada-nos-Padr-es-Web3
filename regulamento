@@ -1,0 +1,59 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+contract Governance {
+    struct Proposal {
+        string description;
+        uint256 voteCount;
+        bool executed;
+    }
+
+    IERC20 public token;
+    Proposal[] public proposals;
+    mapping(uint256 => mapping(address => bool)) public votes;
+
+    event ProposalCreated(uint256 proposalId, string description);
+    event Voted(uint256 proposalId, address voter, uint256 weight);
+    event ProposalExecuted(uint256 proposalId);
+
+    constructor(address tokenAddress) {
+        token = IERC20(tokenAddress);
+    }
+
+    function createProposal(string memory description) public {
+        proposals.push(Proposal({
+            description: description,
+            voteCount: 0,
+            executed: false
+        }));
+
+        emit ProposalCreated(proposals.length - 1, description);
+    }
+
+    function vote(uint256 proposalId) public {
+        require(proposalId < proposals.length, "Proposal does not exist");
+        require(!votes[proposalId][msg.sender], "Already voted");
+        uint256 voterBalance = token.balanceOf(msg.sender);
+        require(voterBalance > 0, "No tokens to vote");
+
+        proposals[proposalId].voteCount += voterBalance;
+        votes[proposalId][msg.sender] = true;
+
+        emit Voted(proposalId, msg.sender, voterBalance);
+    }
+
+    function executeProposal(uint256 proposalId) public {
+        require(proposalId < proposals.length, "Proposal does not exist");
+        Proposal storage proposal = proposals[proposalId];
+        require(!proposal.executed, "Proposal already executed");
+        require(proposal.voteCount > token.totalSupply() / 2, "Not enough votes");
+
+        proposal.executed = true;
+
+        // Lógica para executar a proposta pode ser adicionada aqui
+
+        emit ProposalExecuted(proposalId);
+    }
+}
